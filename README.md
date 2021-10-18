@@ -24,7 +24,7 @@ Please feel free to expand the deployment and add best practice hardening config
 - You need to install Linux (Ubuntu 18.04+/Centos 8/RHEL 8) by yourself on the 6 servers
 - Configure SSH with SSH Key 
 
-#### On your client machine
+### On your client machine
 The client machine is the one you run this script. It can be your Mac, Ubuntu or Centos. 
 - Make sure that you have your SSH key somewhere on the client and you know its path (e.g ~/.ssh/my-key)
 - Put the script and XSOAR installer script in the same folder
