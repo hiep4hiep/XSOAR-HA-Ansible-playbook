@@ -1,5 +1,5 @@
 # XSOAR-HA-Ansible-playbook
-Ansible playbook for XSOAR install in HA mode
+Ansible playbook for XSOAR in HA mode. The playbook is suitable for on-prem environment as it takes care of the application installation only. The server infrastructure/OS will need to be provisioned by yourself.
 
 ## Purpose
 <img width="520" alt="image" src="https://user-images.githubusercontent.com/41276379/137814717-a5cea4a4-45bd-4540-b2cd-7feab0add36c.png">
