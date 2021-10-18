@@ -2,7 +2,8 @@
 Ansible playbook for XSOAR install in HA mode
 
 ## Purpose
-<img width="791" alt="image" src="https://user-images.githubusercontent.com/41276379/137812913-b2782d42-3e39-46b0-ba23-e39459f1ee8b.png">
+<img width="520" alt="image" src="https://user-images.githubusercontent.com/41276379/137814717-a5cea4a4-45bd-4540-b2cd-7feab0add36c.png">
+
 From 6.1, XSOAR supports the Active-Active high availability design with the support of NFS for configuration store and ElasticSearch for shared database. 
 Using this model, we need to:
 - Install the NFS and ES first
@@ -25,6 +26,7 @@ Please feel free to expand the deployment and add best practice hardening config
 
 #### On your client machine
 The client machine is the one you run this script. It can be your Mac, Ubuntu or Centos. 
+- Make sure that you have your SSH key somewhere on the client and you know its path (e.g ~/.ssh/my-key)
 - Put the script and XSOAR installer script in the same folder
 <img width="265" alt="image" src="https://user-images.githubusercontent.com/41276379/137814175-d2e7f37b-3548-4b4b-b9aa-2c39da839277.png">
 - Run the script
