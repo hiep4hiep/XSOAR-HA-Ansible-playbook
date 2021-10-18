@@ -29,8 +29,11 @@ The client machine is the one you run this script. It can be your Mac, Ubuntu or
 - Make sure that you have your SSH key somewhere on the client and you know its path (e.g ~/.ssh/my-key)
 - Put the script and XSOAR installer script in the same folder
 <img width="265" alt="image" src="https://user-images.githubusercontent.com/41276379/137814175-d2e7f37b-3548-4b4b-b9aa-2c39da839277.png">
-- Run the script
-`chmod +x xsoar-system-installer.sh`
-`./xsoar-system-install.sh`
+- Run the script:
+
+> chmod +x xsoar-system-installer.sh
+> 
+> ./xsoar-system-install.sh
+> 
 - The script will ask for: IP Address of the 6 servers, SSH username and path to the SSH key
 - Have a cup of coffee and enjoy your XSOAR HA servers :)
