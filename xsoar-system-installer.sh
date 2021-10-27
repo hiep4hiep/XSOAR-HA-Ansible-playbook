@@ -59,23 +59,23 @@ echo
 # Collect input from user
 xsoarinstaller=$(ls -l | awk '{print $9}' | grep -e 'demistoserver-.*\.sh' | head -1)
 # xsoarinstaller=$(find . -name "demisto*.sh" -printf "%f\n" | head -1)
-echo "XSOAR-01 IP Address/Hostname:"
+echo -n "XSOAR-01 IP Address/Hostname: "
 read xsoar01host
-echo "XSOAR-02 IP Address/Hostname:"
+echo -n "XSOAR-02 IP Address/Hostname: "
 read xsoar02host
-echo "NFS Server IP Address/Hostname:"
+echo -n "NFS Server IP Address/Hostname: "
 read nfshost
-echo "ElasticSearch 01 IP Address/Hostname:"
+echo -n "ElasticSearch 01 IP Address/Hostname: "
 read es1host
-echo "ElasticSearch 02 IP Address/Hostname:"
+echo -n "ElasticSearch 02 IP Address/Hostname: "
 read es2host
-echo "ElasticSearch 03 IP Address/Hostname:"
+echo -n "ElasticSearch 03 IP Address/Hostname: "
 read es3host
-echo "SSH sudoer username to access all servers:"
+echo -n "SSH sudoer username to access all servers: "
 read sshuser
-echo "Does this user require password for sudo (y/n):"
+echo -n "Does this user require password for sudo (y/n): "
 read sshsudopassword
-echo "SSH Private key file (full path):"
+echo -n "SSH Private key file (full path): "
 read sshkey
 
 
@@ -301,6 +301,71 @@ cat <<EOF > es-cluster-playbook.yaml
                 - firewall-cmd --reload
             when: ansible_os_family == "RedHat"
 
+# GENERATE CLUSTER CERTIFICATE
+-   name: GENERATE CLUSTER CERTIFICATE
+    hosts: es1
+    tasks:
+        # Generate certificate on node 1
+        -   name: Generate certificate
+            become: yes
+            shell:
+                cmd: /usr/share/elasticsearch/bin/elasticsearch-certutil cert -out /tmp/elastic-certificates.p12 -pass ""
+        -   name: Change permission to 660
+            become: yes
+            file:
+                path: /tmp/elastic-certificates.p12
+                mode: '0660'
+        -   name: Download the cert to ansible controller machine
+            become: yes
+            fetch:
+                src: /tmp/elastic-certificates.p12
+                dest: ./tmp/
+                flat: yes
+
+# UPLOAD CLUSTER CERITIFCATE
+-   name: UPLOAD CLUSTER CERTIFICATE
+    hosts: es
+    tasks:
+        -   name: Upload the cert to all 3 es node
+            become: yes
+            copy:
+                src: ./tmp/elastic-certificates.p12
+                dest: /etc/elasticsearch/
+                group: elasticsearch
+                mode: '0660'
+
+
+# GENERATE FRONT END CERTIFICATE FOR 3 node
+-   name: GENERATE FRONT END CERTIFICATE ON ES1
+    hosts: es1
+    tasks:
+        -   name: Generate front end certificate
+            become: yes
+            shell:
+                cmd: '/usr/share/elasticsearch/bin/elasticsearch-certutil cert -ip {{ hostvars["es1"].ansible_host }} -out /etc/elasticsearch/front-certificates.p12 -pass ""'
+-   name: GENERATE FRONT END CERTIFICATE ON ES2
+    hosts: es2
+    tasks:
+        -   name: Generate front end certificate
+            become: yes
+            shell:
+                cmd: '/usr/share/elasticsearch/bin/elasticsearch-certutil cert -ip {{ hostvars["es2"].ansible_host }} -out /etc/elasticsearch/front-certificates.p12 -pass ""'
+-   name: GENERATE FRONT END CERTIFICATE ON ES3
+    hosts: es3
+    tasks:
+        -   name: Generate front end certificate
+            become: yes
+            shell:
+                cmd: '/usr/share/elasticsearch/bin/elasticsearch-certutil cert -ip {{ hostvars["es3"].ansible_host }} -out /etc/elasticsearch/front-certificates.p12 -pass ""'
+-   name: CHANGE CERT FILE PERMISSION
+    hosts: es
+    tasks:
+        -   name: Change permission to 660
+            become: yes
+            file:
+                path: /etc/elasticsearch/front-certificates.p12
+                mode: '0660'
+
 # SETTING IN ES CONFIGURATION FILE ON EACH HOST
 -   name: SETTING FOR ELASTICSEARCH NODE 1
     hosts: es1
@@ -321,6 +386,15 @@ cat <<EOF > es-cluster-playbook.yaml
                 - 'http.port: 9200'
                 - 'discovery.seed_hosts: ["{{ hostvars["es1"].ansible_host }}", "{{ hostvars["es2"].ansible_host }}", "{{ hostvars["es3"].ansible_host }}"]'
                 - 'cluster.initial_master_nodes: ["{{ hostvars["es1"].es_node }}", "{{ hostvars["es2"].es_node }}", "{{ hostvars["es3"].es_node }}"]'
+                - 'xpack.security.enabled: true'
+                - 'xpack.security.transport.ssl.enabled: true'
+                - 'xpack.security.transport.ssl.verification_mode: certificate'
+                - 'xpack.security.transport.ssl.keystore.path: elastic-certificates.p12'
+                - 'xpack.security.transport.ssl.truststore.path: elastic-certificates.p12'
+                - 'xpack.security.http.ssl.enabled: true'
+                - 'xpack.security.http.ssl.keystore.path: front-certificates.p12'
+                - 'xpack.security.http.ssl.truststore.path: front-certificates.p12'
+                - 'xpack.security.http.ssl.client_authentication: optional'
 
 -   name: SETTING FOR ELASTICSEARCH NODE 2
     hosts: es2
@@ -341,6 +415,15 @@ cat <<EOF > es-cluster-playbook.yaml
                 - 'http.port: 9200'
                 - 'discovery.seed_hosts: ["{{ hostvars["es1"].ansible_host }}", "{{ hostvars["es2"].ansible_host }}", "{{ hostvars["es3"].ansible_host }}"]'
                 - 'cluster.initial_master_nodes: ["{{ hostvars["es1"].es_node }}", "{{ hostvars["es2"].es_node }}", "{{ hostvars["es3"].es_node }}"]'
+                - 'xpack.security.enabled: true'
+                - 'xpack.security.transport.ssl.enabled: true'
+                - 'xpack.security.transport.ssl.verification_mode: certificate'
+                - 'xpack.security.transport.ssl.keystore.path: elastic-certificates.p12'
+                - 'xpack.security.transport.ssl.truststore.path: elastic-certificates.p12'
+                - 'xpack.security.http.ssl.enabled: true'
+                - 'xpack.security.http.ssl.keystore.path: front-certificates.p12'
+                - 'xpack.security.http.ssl.truststore.path: front-certificates.p12'
+                - 'xpack.security.http.ssl.client_authentication: optional'
 
 -   name: SETTING FOR ELASTICSEARCH NODE 3
     hosts: es3
@@ -361,6 +444,17 @@ cat <<EOF > es-cluster-playbook.yaml
                 - 'http.port: 9200'
                 - 'discovery.seed_hosts: ["{{ hostvars["es1"].ansible_host }}", "{{ hostvars["es2"].ansible_host }}", "{{ hostvars["es3"].ansible_host }}"]'
                 - 'cluster.initial_master_nodes: ["{{ hostvars["es1"].es_node }}", "{{ hostvars["es2"].es_node }}", "{{ hostvars["es3"].es_node }}"]'
+                - 'xpack.security.enabled: true'
+                - 'xpack.security.transport.ssl.enabled: true'
+                - 'xpack.security.transport.ssl.verification_mode: certificate'
+                - 'xpack.security.transport.ssl.keystore.path: elastic-certificates.p12'
+                - 'xpack.security.transport.ssl.truststore.path: elastic-certificates.p12'
+                - 'xpack.security.http.ssl.enabled: true'
+                - 'xpack.security.http.ssl.keystore.path: front-certificates.p12'
+                - 'xpack.security.http.ssl.truststore.path: front-certificates.p12'
+                - 'xpack.security.http.ssl.client_authentication: optional'
+
+
 
 # START THE SERVICE
 -   name: START ES CLUSTER SERVICE
@@ -394,6 +488,21 @@ cat <<EOF > es-cluster-playbook.yaml
                 name: elasticsearch.service
                 state: started
                 enabled: yes
+
+# GENERATE PASSWORD FOR ELASTIC USER
+-   name: GENERATE PASSWROD
+    hosts: es1
+    tasks:
+        -   name: Generate password
+            become: yes
+            shell: 
+                cmd: /usr/share/elasticsearch/bin/elasticsearch-setup-passwords auto -b > /tmp/elasticpass
+        -   name: Capture the password
+            become: yes
+            shell: 
+                cmd: cat /tmp/elasticpass | grep elastic | awk '{match($0,"[a-zA-Z0-9]+$",a)}END{print a[0]}'
+            register: elastic_password
+        - debug: msg="{{ elastic_password.stdout }}"
 EOF
 
 cat <<EOF > xsoar-server-playbook.yaml
@@ -430,11 +539,14 @@ cat <<EOF > xsoar-server-playbook.yaml
                 line: "{{ hostvars['nfs1'].ansible_host }}:/var/lib/demisto   /var/lib/demisto    nfs defaults    0   0"
                 state: present
     # Install XSOAR
+        -   name: Debug password
+            become: yes
+            debug: msg='{{ hostvars['es1']['elastic_password'].stdout }}'
         -   name: Run XSOAR installer script
             become: yes
             script:
                 chdir: ~
-                cmd: './{{ hostvars["xsoar1"].xsoar_installer }} --target installer -- -y -elasticsearch-url=http://{{ hostvars["es1"].ansible_host}}:9200,http://{{ hostvars["es2"].ansible_host }}:9200,http://{{ hostvars["es3"].ansible_host }}:9200'
+                cmd: '{{ hostvars["xsoar1"].xsoar_installer }} --target installer -- -y -elasticsearch-url=https://{{ hostvars["es1"].ansible_host}}:9200,https://{{ hostvars["es2"].ansible_host }}:9200,https://{{ hostvars["es3"].ansible_host }}:9200 -elasticsearch-username=elastic -elasticsearch-password={{ hostvars["es1"]["elastic_password"].stdout }} -elasticsearch-insecure=true'
     # Add Firewalld rule on Centos, Redhat
         -   name: Enable HTTPS on Firewall
             become: yes
@@ -470,3 +582,4 @@ else
     ansible-playbook -i inventory.yaml main-playbook.yaml
 fi
 fi
+rm -rf ./*.yaml ./tmp
