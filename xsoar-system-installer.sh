@@ -18,7 +18,8 @@ sleep 5
 echo
 echo "Installing Pip3"
 osrelease=$(uname -a | cut -d" " -f2)
-if [ $osrelease == "ubuntu" ]
+osrelease_detail=$(cat /etc/os-release | head -n1)
+if [ $osrelease == "ubuntu" ] || [ $osrelease_detail == "NAME=\"Ubuntu\""  ]
 then
     apt list --installed | grep python3-pip > /dev/null
     if [ $? -eq 1 ]
@@ -500,7 +501,7 @@ cat <<EOF > es-cluster-playbook.yaml
         -   name: Capture the password
             become: yes
             shell: 
-                cmd: cat /tmp/elasticpass | grep elastic | awk '{match($0,"[a-zA-Z0-9]+$",a)}END{print a[0]}'
+                cmd: cat /tmp/elasticpass | grep "PASSWORD elastic" | cut -d" " -f4
             register: elastic_password
         - debug: msg="{{ elastic_password.stdout }}"
 EOF
