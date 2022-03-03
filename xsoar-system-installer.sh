@@ -24,13 +24,15 @@ then
     apt list --installed | grep python3-pip > /dev/null
     if [ $? -eq 1 ]
     then
+        apt-get update
         apt-get -y install python3-pip
     fi
-elif [ $osrelease == "Centos" ]
+elif [ $osrelease == "Centos" ] || [ $osrelease_detail == "NAME=\"CentOS\""  ]
 then
     rpm -eq | grep python3-pip > /dev/null
     if [ $? -eq 1 ]
     then
+        yum update
         yum -y yum install python3-pip > /dev/null
     fi
 else
@@ -81,6 +83,11 @@ read sshkey
 
 
 # Build Ansible playbook files
+cat <<EOF > ansible.cfg
+[defaults]
+host_key_checking = False
+EOF
+
 cat <<EOF > inventory.yaml
 all:
     children:
